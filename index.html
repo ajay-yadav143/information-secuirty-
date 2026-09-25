@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Classroom Toolkit</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js"></script>
+<style>
+:root{
+  --bg:#f7f5f2; --fg:#1e1c1a; --card:#ffffff; --border:#e3ddd4; --accent:#a5501f; --accent2:#3f6b4f; --muted:#7a736a;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#181513; --fg:#efe9e1; --card:#221e1a; --border:#3a332c; --accent:#e08a4f; --accent2:#7fbf9a; --muted:#a89f93; }
+}
+:root[data-theme="dark"]{ --bg:#181513; --fg:#efe9e1; --card:#221e1a; --border:#3a332c; --accent:#e08a4f; --accent2:#7fbf9a; --muted:#a89f93; }
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5;}
+header{padding:18px 16px;border-bottom:1px solid var(--border);}
+header h1{margin:0 0 4px;font-size:1.3rem;}
+header p{margin:0;color:var(--muted);font-size:.85rem;}
+nav{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;}
+nav button{background:var(--card);border:1px solid var(--border);color:var(--fg);padding:7px 11px;border-radius:20px;font-size:.78rem;cursor:pointer;}
+nav button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+main{max-width:820px;margin:0 auto;padding:18px 16px 60px;}
+.panel{display:none;}
+.panel.active{display:block;}
+h2{margin-top:0;font-size:1.1rem;}
+label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px;}
+input[type=text],input[type=number],input[type=date],textarea,select{width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);font-size:.9rem;font-family:inherit;}
+textarea{min-height:90px;resize:vertical;}
+button.act{margin-top:12px;background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:.9rem;cursor:pointer;}
+button.sec{background:transparent;border:1px solid var(--border);color:var(--fg);padding:8px 12px;border-radius:8px;font-size:.82rem;cursor:pointer;margin-top:8px;margin-right:6px;}
+.out{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;white-space:pre-wrap;font-size:.88rem;overflow-x:auto;}
+.muted{color:var(--muted);font-size:.8rem;}
+.row{display:flex;gap:8px;flex-wrap:wrap;}
+.row>*{flex:1;min-width:140px;}
+table{width:100%;border-collapse:collapse;font-size:.82rem;}
+th,td{border:1px solid var(--border);padding:6px;text-align:left;}
+.card3d{perspective:800px;width:100%;max-width:320px;height:180px;margin:14px auto;cursor:pointer;}
+.card3d-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d;}
+.card3d.flip .card3d-inner{transform:rotateY(180deg);}
+.face{position:absolute;inset:0;backface-visibility:hidden;border:1px solid var(--border);border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;padding:14px;text-align:center;font-size:.9rem;}
+.back{transform:rotateY(180deg);background:var(--accent2);color:#fff;}
+.chatlog{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto;}
+.bubble{padding:9px 12px;border-radius:12px;max-width:80%;font-size:.88rem;}
+.me{align-self:flex-end;background:var(--accent);color:#fff;}
+.ai{align-self:flex-start;background:var(--card);border:1px solid var(--border);}
+.opt{display:block;width:100%;text-align:left;padding:8px 10px;margin:5px 0;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);cursor:pointer;font-size:.85rem;}
+.opt.correct{background:var(--accent2);color:#fff;}
+.opt.wrong{background:#b3413a;color:#fff;}
+.slide{border:1px solid var(--border);border-radius:10px;padding:20px;min-height:180px;background:var(--card);}
+.slide h3{margin-top:0;}
+</style>
+</head>
+<body>
+<header>
+<h1>🧠 AI Classroom Toolkit</h1>
+<p>10 AI-powered study tools in one site — resume, notes, slides, mind maps, sheets, quiz, tutor, flashcards, planner, OCR summary.</p>
+</header>
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<script>
+const tools = [
+ {id:'resume', label:'📄 Resume'}, {id:'notes', label:'📝 Notes'}, {id:'slides', label:'🖼️ Slides'},
+ {id:'mindmap', label:'🌳 Mind Map'}, {id:'sheets', label:'📊 Sheets'}, {id:'quiz', label:'❓ Quiz'},
+ {id:'tutor', label:'💬 Tutor'}, {id:'flash', label:'🃏 Flashcards'}, {id:'plan', label:'🗓️ Planner'}, {id:'ocr', label:'📷 OCR Summary'}
+];
+const nav = document.getElementById('nav');
+const main = document.getElementById('main');
+tools.forEach(t=>{
+  const b=document.createElement('button'); b.textContent=t.label; b.onclick=()=>show(t.id);
+  b.id='nav-'+t.id; nav.appendChild(b);
+});
+function show(id){
+  tools.forEach(t=>{
+    document.getElementById('nav-'+t.id).classList.toggle('active', t.id===id);
+    const p=document.getElementById('panel-'+t.id); if(p) p.classList.toggle('active', t.id===id);
+  });
+}
+let aiHandle=null;
+async function ai(){
+  if(aiHandle!==null) return aiHandle;
+  try{ aiHandle = await claude.use('sample'); }catch(e){ aiHandle=null; }
+  return aiHandle;
+}
+async function askText(prompt, outEl){
+  outEl.textContent='Thinking…';
+  const s = await ai();
+  if(!s){ outEl.textContent='AI is unavailable in this view.'; return null; }
+  try{
+    const r = await s(prompt, {onText:({text})=>{outEl.textContent=text;}});
+    return r.text;
+  }catch(e){ outEl.textContent='Error: '+(e.message||e.code||'failed'); return null; }
+}
+async function askJSON(prompt, outEl){
+  outEl.textContent='Thinking…';
+  const s = await ai();
+  if(!s){ outEl.textContent='AI is unavailable in this view.'; return null; }
+  try{ return await s.json(prompt); }
+  catch(e){ outEl.textContent='Error: '+(e.message||e.code||'failed'); return null; }
+}
+function panel(id, title, html){
+  const d=document.createElement('div'); d.className='panel'; d.id='panel-'+id;
+  d.innerHTML=`<h2>${title}</h2>${html}`; main.appendChild(d);
+}
+
+// 1 Resume
+panel('resume','AI Resume Builder', `
+<label>Name</label><input id=r_name type=text>
+<label>Contact</label><input id=r_contact type=text>
+<label>Education</label><textarea id=r_edu></textarea>
+<label>Skills</label><textarea id=r_skills></textarea>
+<label>Experience</label><textarea id=r_exp></textarea>
+<label>Objective</label><textarea id=r_obj></textarea>
+<button class=act onclick="genResume()">Generate Resume</button>
+<div class=out id=r_out></div>`);
+async function genResume(){
+  const p=`Write a professional resume in Markdown using: Name: ${r_name.value}; Contact: ${r_contact.value}; Education: ${r_edu.value}; Skills: ${r_skills.value}; Experience: ${r_exp.value}; Objective: ${r_obj.value}. Return only the resume.`;
+  const t=await askText(p, r_out); if(t) r_out.innerHTML = marked.parse(t);
+}
+
+// 2 Notes
+panel('notes','AI Notes Generator', `
+<label>Paste topic or paragraph</label><textarea id=n_in></textarea>
+<button class=act onclick="genNotes()">Generate Notes</button>
+<div class=out id=n_out></div>`);
+async function genNotes(){
+  const p=`Convert this text into short bullet-point study notes with clear Markdown headings:\n\n${n_in.value}`;
+  const t=await askText(p, n_out); if(t) n_out.innerHTML = marked.parse(t);
+}
+
+// 3 Slides
+panel('slides','AI Presentation Generator', `
+<label>Topic</label><input id=s_topic type=text>
+<button class=act onclick="genSlides()">Generate Slides</button>
+<div id=s_wrap></div>`);
+let slideData=[], slideIdx=0;
+async function genSlides(){
+  s_wrap.innerHTML='<div class=out id=s_out>Thinking…</div>';
+  const j = await askJSON(`Return JSON only: an array of 5-6 slides for the topic "${s_topic.value}". Each item: {"title":string,"bullets":[string,...3-4 bullets]}`, s_out);
+  if(!j) return;
+  slideData=j; slideIdx=0; renderSlide();
+}
+function renderSlide(){
+  const sl=slideData[slideIdx];
+  s_wrap.innerHTML = `<div class=slide><h3>${sl.title}</h3><ul>${sl.bullets.map(b=>`<li>${b}</li>`).join('')}</ul></div>
+  <div class=row style="margin-top:8px"><button class=sec onclick="slideIdx=Math.max(0,slideIdx-1);renderSlide()">◀ Prev</button>
+  <span class=muted style="align-self:center">Slide ${slideIdx+1}/${slideData.length}</span>
+  <button class=sec onclick="slideIdx=Math.min(slideData.length-1,slideIdx+1);renderSlide()">Next ▶</button></div>`;
+}
+
+// 4 Mind map
+panel('mindmap','AI Mind Map Generator', `
+<label>Paste syllabus / topic list</label><textarea id=m_in></textarea>
+<button class=act onclick="genMap()">Generate Mind Map</button>
+<div class=out id=m_out></div>`);
+async function genMap(){
+  const j = await askJSON(`Turn this syllabus into a nested outline tree. Return JSON only: {"topic":string,"children":[ same shape recursively, up to 3 levels ]}.\n\n${m_in.value}`, m_out);
+  if(!j) return;
+  function render(node){ return `<li><b>${node.topic}</b>${node.children&&node.children.length?`<ul>${node.children.map(render).join('')}</ul>`:''}</li>`; }
+  m_out.innerHTML = `<ul>${render(j)}</ul>`;
+}
+
+// 5 Sheets
+panel('sheets','Google Sheets Live Data', `
+<p class=muted>Paste your deployed Apps Script Web App URL (doGet returning JSON array of rows).</p>
+<input id=sh_url type=text placeholder="https://script.google.com/macros/s/.../exec">
+<button class=act onclick="loadSheet()">Fetch Data</button>
+<button class=sec onclick="summarizeSheet()">AI Summarize Data</button>
+<div class=out id=sh_out>No data loaded yet.</div>`);
+let sheetRows=null;
+async function loadSheet(){
+  sh_out.textContent='Loading…';
+  try{
+    const res = await fetch(sh_url.value); sheetRows = await res.json();
+    if(!Array.isArray(sheetRows) || !sheetRows.length){ sh_out.textContent='No rows returned.'; return; }
+    const cols = Object.keys(sheetRows[0]);
+    sh_out.innerHTML = `<table><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>${sheetRows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('')}</table>`;
+  }catch(e){ sh_out.textContent='Could not fetch (check URL/CORS): '+e.message; }
+}
+async function summarizeSheet(){
+  if(!sheetRows){ sh_out.textContent='Load data first.'; return; }
+  const d=document.createElement('div'); d.className='out'; sh_out.after(d);
+  await askText(`Summarize key trends/insights from this data:\n${JSON.stringify(sheetRows).slice(0,4000)}`, d);
+}
+
+// 6 Quiz
+panel('quiz','AI Quiz / MCQ Generator', `
+<label>Topic or notes</label><textarea id=q_in></textarea>
+<button class=act onclick="genQuiz()">Generate Quiz</button>
+<div id=q_wrap></div>`);
+let quiz=[], qi=0, score=0;
+async function genQuiz(){
+  q_wrap.innerHTML='<div class=out id=q_out>Thinking…</div>';
+  const j = await askJSON(`Generate 6 multiple-choice questions on: "${q_in.value}". Return JSON only: array of {"question":string,"options":[4 strings],"answer":string (must match one option exactly)}.`, q_out);
+  if(!j) return;
+  quiz=j; qi=0; score=0; renderQ();
+}
+function renderQ(){
+  if(qi>=quiz.length){ q_wrap.innerHTML=`<div class=out>Final score: ${score}/${quiz.length}</div>`; return; }
+  const q=quiz[qi];
+  q_wrap.innerHTML = `<div class=out><b>Q${qi+1}. ${q.question}</b>${q.options.map(o=>`<button class=opt onclick="answerQ(this,'${o.replace(/'/g,"\\'")}','${q.answer.replace(/'/g,"\\'")}')">${o}</button>`).join('')}</div><p class=muted>Score: ${score}</p>`;
+}
+function answerQ(btn,opt,ans){
+  document.querySelectorAll('#q_wrap .opt').forEach(b=>b.onclick=null);
+  if(opt===ans){ btn.classList.add('correct'); score++; } else { btn.classList.add('wrong'); }
+  setTimeout(()=>{ qi++; renderQ(); }, 900);
+}
+
+// 7 Tutor
+panel('tutor','AI Doubt-Solving Tutor', `
+<label>Subject</label><input id=t_subject type=text placeholder="e.g. Physics">
+<div class=chatlog id=t_log></div>
+<div class=row style="margin-top:8px"><input id=t_msg type=text placeholder="Ask a question…"></div>
+<button class=act onclick="tutorSend()">Send</button>
+<button class=sec onclick="t_log.innerHTML='';tutorHist=[]">Clear chat</button>`);
+let tutorHist=[];
+async function tutorSend(){
+  const msg=t_msg.value.trim(); if(!msg) return; t_msg.value='';
+  t_log.innerHTML += `<div class="bubble me">${msg}</div>`;
+  tutorHist.push({role:'user',content:msg});
+  const bubble=document.createElement('div'); bubble.className='bubble ai'; bubble.textContent='…'; t_log.appendChild(bubble); t_log.scrollTop=t_log.scrollHeight;
+  const s=await ai(); if(!s){ bubble.textContent='AI unavailable.'; return; }
+  const sys={role:'user',content:`You are a helpful tutor for ${t_subject.value||'general subjects'}. Explain simply with examples. Conversation so far, respond to the latest question:\n`+tutorHist.map(h=>h.role+': '+h.content).join('\n')};
+  try{ const r=await s([sys], {onText:({text})=>{bubble.textContent=text; t_log.scrollTop=t_log.scrollHeight;}}); tutorHist.push({role:'assistant',content:r.text}); }
+  catch(e){ bubble.textContent='Error.'; }
+}
+
+// 8 Flashcards
+panel('flash','AI Flashcard Generator', `
+<label>Topic or study text</label><textarea id=f_in></textarea>
+<button class=act onclick="genFlash()">Generate Flashcards</button>
+<div id=f_wrap></div>`);
+let flash=[], fi=0;
+async function genFlash(){
+  f_wrap.innerHTML='<div class=out id=f_out>Thinking…</div>';
+  const j = await askJSON(`Generate 8 flashcards for: "${f_in.value}". Return JSON only: array of {"question":string,"answer":string}.`, f_out);
+  if(!j) return; flash=j; fi=0; shuffleNote=false; renderFlash();
+}
+function renderFlash(){
+  const c=flash[fi];
+  f_wrap.innerHTML = `<div class="card3d" id=fcard onclick="this.classList.toggle('flip')">
+    <div class="card3d-inner"><div class="face front">${c.question}</div><div class="face back">${c.answer}</div></div></div>
+    <div class=row><button class=sec onclick="fi=(fi+1)%flash.length;renderFlash()">Next</button>
+    <button class=sec onclick="flash.sort(()=>Math.random()-.5);fi=0;renderFlash()">Shuffle</button></div>
+    <p class=muted>Card ${fi+1}/${flash.length} — tap to flip</p>`;
+}
+
+// 9 Planner
+panel('plan','AI Study Planner', `
+<label>Subjects (comma separated)</label><input id=p_subjects type=text>
+<label>Hours available per day</label><input id=p_hours type=number value=3>
+<label>Exam/target date</label><input id=p_date type=date>
+<button class=act onclick="genPlan()">Generate Timetable</button>
+<div class=out id=p_out></div>`);
+async function genPlan(){
+  const j = await askJSON(`Create a balanced day-wise study timetable. Subjects: ${p_subjects.value}. Hours/day: ${p_hours.value}. Target date: ${p_date.value}. Return JSON only: array of {"day":string,"slot":string,"subject":string}.`, p_out);
+  if(!j) return;
+  p_out.innerHTML = `<table><tr><th>Day</th><th>Time Slot</th><th>Subject</th></tr>${j.map(r=>`<tr><td>${r.day}</td><td>${r.slot}</td><td>${r.subject}</td></tr>`).join('')}</table>`;
+}
+
+// 10 OCR
+panel('ocr','AI Notes Summarizer from Photos', `
+<input type=file id=o_file accept="image/*">
+<button class=act onclick="runOCR()">Extract & Summarize</button>
+<p class=muted>Extracted text:</p><div class=out id=o_raw>—</div>
+<p class=muted>AI Summary:</p><div class=out id=o_sum>—</div>`);
+async function runOCR(){
+  const f=o_file.files[0]; if(!f){ o_raw.textContent='Choose an image first.'; return; }
+  o_raw.textContent='Running OCR…';
+  const { data:{ text } } = await Tesseract.recognize(f,'eng');
+  o_raw.textContent = text || '(no text found)';
+  await askText(`Summarize this into key points:\n${text}`, o_sum);
+}
+
+show('resume');
+</script>
+</body>
+</html>
